@@ -1,8 +1,53 @@
+diff --git a/fs/namespace.c b/fs/namespace.c
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -30,10 +30,21 @@
+ #include <linux/fs_context.h>
+ #include <linux/fs_parser.h>
+ #include <linux/anon_inodes.h>
++#ifdef CONFIG_KSU_SUSFS
++#include <linux/susfs_def.h>
++#endif // #ifdef CONFIG_KSU_SUSFS
+ 
+ #include "pnode.h"
+ #include "internal.h"
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++extern bool susfs_is_current_ksu_domain(void);
++extern struct static_key_true susfs_is_sdcard_android_data_not_decrypted;
++
++#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
++
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
+ /* Maximum number of mounts in a mount namespace */
+ unsigned int sysctl_mount_max __read_mostly = 100000;
+ 
+diff --git a/fs/super.c b/fs/super.c
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -37,8 +37,17 @@
+ #include <linux/lockdep.h>
+ #include <linux/user_namespace.h>
+ #include <linux/fs_context.h>
++#ifdef CONFIG_KSU_SUSFS
++#include <linux/susfs_def.h>
++#include <linux/jump_label.h>
++#endif // #ifdef CONFIG_KSU_SUSFS
+ #include "internal.h"
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++extern bool susfs_is_current_ksu_domain(void);
++extern struct static_key_true susfs_is_sdcard_android_data_not_decrypted;
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
+ static LIST_HEAD(super_blocks);
+ static DEFINE_SPINLOCK(sb_lock);
+ 
 diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
-index 8223e9241c67..3439ff0cd228 100644
 --- a/fs/proc/cmdline.c
 +++ b/fs/proc/cmdline.c
-@@ -23,8 +23,20 @@ static void proc_command_line_init(void) {
+@@ -23,8 +23,20 @@
  	memcpy(offset_addr, INITRAMFS_STR_REPLACE, INITRAMFS_STR_LEN);
  }
  
@@ -24,7 +69,6 @@ index 8223e9241c67..3439ff0cd228 100644
  		seq_printf(m, "%s\n", proc_command_line);
  	else
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index a7703c9a0d7e..34062c1449be 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -19,6 +19,9 @@
@@ -37,7 +81,7 @@ index a7703c9a0d7e..34062c1449be 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
-@@ -1127,6 +1130,11 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+@@ -1127,6 +1130,11 @@
  		mss = &mss_stack;
  	}
  
@@ -49,7 +93,7 @@ index a7703c9a0d7e..34062c1449be 100644
  #ifdef CONFIG_SHMEM
  	/* In case of smaps_rollup, reset the value from previous vma */
  	mss->check_shmem_swap = false;
-@@ -1918,7 +1926,15 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+@@ -1918,7 +1926,15 @@
  		if (end < start_vaddr || end > end_vaddr)
  			end = end_vaddr;
  		down_read(&mm->mmap_sem);
@@ -66,10 +110,9 @@ index a7703c9a0d7e..34062c1449be 100644
  		start_vaddr = end;
  
 diff --git a/kernel/sys.c b/kernel/sys.c
-index df007b7bcbaf..204ab06a70c7 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
-@@ -1195,12 +1195,20 @@ static int override_release(char __user *release, size_t len)
+@@ -1195,12 +1195,20 @@
  	return ret;
  }
  
